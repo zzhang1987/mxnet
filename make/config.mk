@@ -60,7 +60,7 @@ USE_OPENCV = 1
 USE_OPENMP = 1
 
 # whether use MKL2017 library
-USE_MKL2017 = 0
+USE_MKL2017 = 1
 
 # whether use MKL2017 experimental feature for high performance
 USE_MKL2017_EXPERIMENTAL = 0

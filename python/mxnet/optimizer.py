@@ -229,6 +229,84 @@ class Optimizer(object):
 # convenience wrapper for Optimizer.Register
 register = Optimizer.register
 
+@register
+class SGDInt(Optimizer):
+    """A very simple SGD optimizer with momentum and weight regularization.
+
+    Parameters
+    ----------
+    learning_rate : float, optional
+        learning_rate of SGD
+
+    momentum : float, optional
+       momentum value
+
+    wd : float, optional
+        L2 regularization coefficient add to all the weights
+
+    rescale_grad : float, optional
+        rescaling factor of gradient.
+
+    clip_gradient : float, optional
+        clip gradient in range [-clip_gradient, clip_gradient]
+
+    param_idx2name : dict of string/int to float, optional
+        special treat weight decay in parameter ends with bias, gamma, and beta
+    """
+    def __init__(self, momentum=0.0, **kwargs):
+        super(SGD, self).__init__(**kwargs)
+        self.momentum = momentum
+
+    def create_state(self, index, weight):
+        """Create additional optimizer state such as momentum.
+
+        Parameters
+        ----------
+        weight : NDArray
+            The weight data
+
+        """
+        if self.momentum == 0.0:
+            return None
+        else:
+            return zeros(weight.shape, weight.context, dtype=weight.dtype)
+
+    def update(self, index, weight, grad, state):
+        """Update the parameters.
+
+        Parameters
+        ----------
+        index : int
+            An unique integer key used to index the parameters
+
+        weight : NDArray
+            weight ndarray
+
+        grad : NDArray
+            grad ndarray
+
+        state : NDArray or other objects returned by init_state
+            The auxiliary state used in optimization.
+        """
+        assert(isinstance(weight, NDArray))
+        assert(isinstance(grad, NDArray))
+        lr = self._get_lr(index)
+        wd = self._get_wd(index)
+        self._update_count(index)
+
+        grad = grad * self.rescale_grad
+        if self.clip_gradient is not None:
+            grad = clip(grad, -self.clip_gradient, self.clip_gradient)
+
+        if state:
+            mom = state
+            mom[:] *= self.momentum
+            mom[:] += -lr * (grad + wd * weight)
+            weight[:] += mom
+        else:
+            assert self.momentum == 0.0
+            weight[:] += -lr * (grad + wd * weight)
+            weight[:] = np.array(weight[:] > 0.5, weight.dtype)
 
 @register
 class SGD(Optimizer):
@@ -422,6 +500,8 @@ class SGLD(Optimizer):
                                                             weight.shape, weight.context)
 
 
+
+        
 @register
 class ccSGD(Optimizer):
     """A very simple SGD optimizer with momentum and weight regularization.
